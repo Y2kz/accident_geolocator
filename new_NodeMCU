@@ -1,0 +1,102 @@
+#include <SoftwareSerial.h>
+#define BLYNK_PRINT Serial
+#include <ESP8266WiFi.h>
+#include <BlynkSimpleEsp8266.h>
+
+SoftwareSerial s(14, 12);
+//BLYNK
+char auth[] = "xxxxxxxxxxxxxxxxxxxxxxxxxxxx"; //Blynk Auth
+//Wi-Fi
+char ssid[] = "xxxxxxxxxx"; //Wi-Fi Name
+char pass[] = "xxxxxxxxxx"; //Wi-Fi Password
+
+//url connector
+String val1 = "value1=";
+String val2 = "&value2=";
+String val3 = "&value3=";
+
+String latstr;
+String lonstr;
+String latlontemp;
+
+
+
+//String temp_reading = "32" ;
+int data;
+int accident_state= 0;//1 or 0 accident
+int Temperature;//temp
+int i = 1;
+void setup() 
+{
+  s.begin(9600);
+  Serial.begin(9600);
+  Blynk.begin(auth, ssid, pass);
+}
+
+void loop() 
+ {
+    serial_getData();//serial temp accident status
+    if (data > 115 )
+    {
+      delay(10000);
+      Blynk.run();//get location & trigger webhook 
+      Serial.println("Accident Detected\n");
+      
+      //To reset WDT of ESP8266
+      //While loop reboots the MCU
+      while(i=1)
+      {
+        i=1;
+      }
+      
+    }
+    else
+    {
+      //Serial.println("Normal\n");
+    }
+    //delay(5000);
+ }
+
+void serial_getData()
+{
+  s.write("s");
+ 
+  if (s.available()>0)
+  {
+   // data = 0;
+    data = s.read();
+   // Blynk.virtualWrite(V10, data);
+    accident_state = data / 100;   
+    int mul= accident_state*100;   
+    Temperature = data - mul;
+    Serial.print(data);
+    Serial.print("\n");
+    
+    /*
+    Serial.print("\nTemperature :");
+    Serial.println(Temperature);
+    Serial.println("\nAccident State :");
+    Serial.println(accident_state);
+    */
+    
+  }
+}
+
+BLYNK_WRITE(V2)
+{
+ float lt1 = param[0].asFloat();
+ float lo1 = param[1].asFloat();
+ latstr = String(lt1, 7);
+ lonstr = String(lo1, 7);
+ String latlontemp = val1 + latstr + val2 + lonstr + val3 + Temperature ;
+ Blynk.virtualWrite(V5, latlontemp) ;
+ Serial.println("Accident location send\n");
+ delay(5000);
+  //To reset WDT of ESP8266
+  //While loop reboots the MCU
+ while (i=1)
+ {
+  i=1;
+ }
+ delay(5000);
+}
