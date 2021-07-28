@@ -1,0 +1,166 @@
+#include <MPU6050_tockn.h>
+#include <Wire.h>
+#include <SoftwareSerial.h>//
+
+SoftwareSerial s(5,6);//
+MPU6050 mpu6050(Wire);
+
+long timer = 0;
+int temperature;
+int accident_state = 0;
+
+int Xangle;
+int Yangle;
+
+int loop_num;
+int data;
+
+float AddX;
+float AddY;
+
+int Xtrigger;
+int Ytrigger;
+
+void setup() 
+{
+  Serial.begin(9600);
+  s.begin(9600);
+  Wire.begin();
+  mpu6050.begin();
+  mpu6050.calcGyroOffsets(true);
+}
+
+void loop() 
+{
+ mpu6050.update();
+ if(millis() - timer > 1000)
+ {
+  Serial.println("\n*************************");
+  get_temp(); //var temperature
+  get_glyro();  //var Xangle Yangle
+  glyro_trigger_loop();
+  glyro_math();
+  
+  if(loop_num >=3)
+  {
+    check_accident();
+    loop_num = 0;
+    
+    // reset_value();  //totalx totaly
+    //reset
+  }
+  else
+  {
+    Serial.println ("\nLooping\n");
+  }
+  
+  data_add();
+  //reset_value(); //totalx totaly
+  
+  accident_state = 0;
+  loop_num++;
+  Serial.print("\n*************************");
+  delay(5000);
+  timer = millis();
+ }
+}
+
+void get_temp()
+{
+  temperature = mpu6050.getTemp();
+  Serial.print("\nTemperature : ");
+  Serial.println(temperature);
+}
+
+void get_glyro()
+{
+  Xangle = mpu6050.getAngleX();
+  Yangle = mpu6050.getAngleY();
+  Serial.print("\nX angle : ");
+  Serial.print(Xangle);
+  Serial.print("\nY angle : ");
+  Serial.print(Yangle);
+}
+
+void glyro_math()
+{
+  AddX = Xangle + 1000 ;
+  AddY = Yangle + 1000 ;
+}
+
+void check_accident()
+{
+  if (Xtrigger >= 3)
+  {
+    Serial.print("\nX accident Confirmed ");
+    accident_state = 1;
+  }
+  
+  else if(Ytrigger >= 3)
+  {
+    Serial.print("\nY accident Confirmed ");
+    accident_state = 1;
+  }
+  else
+  {
+    accident_state = 0;
+  }
+}
+
+void data_add()
+{
+  Serial.print("\nAccident state :");
+  Serial.println(accident_state);
+  Serial.print("\nTemperature state :");
+  Serial.println(temperature);
+  data = (accident_state*100) + temperature ;
+  if(s.available()>0)
+   {
+     s.write(data);
+   } 
+}
+
+/*
+void reset_value()
+{
+  totalX = 0;
+  totalY = 0;
+}
+*/
+
+void glyro_trigger_loop()
+{
+  int setmax=1035;
+  int setmin=965;
+  if (AddX > setmax)
+      {
+       Serial.println("+X accident Not confirmed\n");
+       Xtrigger++;
+      }
+      else if (AddX < setmin)
+      {
+        Serial.println("\n-X accident Not Confirmed\n");
+        Xtrigger++;
+      }
+      else 
+      {
+        Serial.println("\nX Normal\n");
+        Xtrigger = 0;
+      }
+      
+      if (AddY > setmax)
+      {
+        Serial.println("\n+Y accident Not Confirmed\n");
+        Ytrigger++;
+      }
+      else if (AddY < setmin)
+      {
+        Serial.println("\n-Y accident\n");
+        Ytrigger++;
+      }
+      else
+      {
+        Serial.println("\nY Normal\n");
+        Ytrigger = 0;
+      }
+}
